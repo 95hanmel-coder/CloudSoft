@@ -15,6 +15,9 @@ public class NewsletterController : Controller
         return View();
     }
 
+    
+
+
     [HttpPost]
     public IActionResult Subscribe(Subscriber subscriber)
     {
@@ -43,4 +46,10 @@ public class NewsletterController : Controller
         // Return the view (using the POST-REDIRECT-GET pattern)
         return RedirectToAction(nameof(Subscribe));
     }
+
+    [HttpGet]
+public IActionResult Subscribers()
+{
+    return View(_subscribers);
+}
 }
