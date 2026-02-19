@@ -60,6 +60,9 @@ public class NewsletterService : INewsletterService
 
     public async Task<IEnumerable<Subscriber>> GetActiveSubscribersAsync()
     {
-        return await _subscriberRepository.GetAllAsync();
+        var subscribers = await _subscriberRepository.GetAllAsync();
+        
+        // Convert to a concrete List to satisfy the View's model requirements
+        return subscribers.ToList();
     }
 }
