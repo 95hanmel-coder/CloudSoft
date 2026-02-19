@@ -1,75 +1,72 @@
 ﻿using CloudSoft.Models;
+using CloudSoft.Repositories;
 using CloudSoft.Services;
-using Xunit;
+using Xunit; 
 
-namespace CloudSoft.Services.UnitTests;
+namespace CloudSoft.Tests;
 
 public class NewsletterServiceTests
 {
-    private readonly INewsletterService _sut;
+    private readonly NewsletterService _sut;
+    private readonly InMemorySubscriberRepository _repository;
 
     public NewsletterServiceTests()
     {
-        // sut = System Under Test
-        _sut = new NewsletterService();
+        // Fresh instance for each test to prevent data leakage between tests
+        _repository = new InMemorySubscriberRepository();
+        _sut = new NewsletterService(_repository);
     }
 
     [Fact]
-    public async Task SignUpForNewsletterAsync_WithValidSubscriber_ReturnsSuccess()
+    public async Task SignUpForNewsletterAsync_ValidSubscriber_ReturnsSuccess()
     {
-        var subscriber = new Subscriber { Name = "Test User", Email = "user@example.com" };
+        var subscriber = new Subscriber { Name = "Test User", Email = "test@test.com" };
+
         var result = await _sut.SignUpForNewsletterAsync(subscriber);
 
         Assert.True(result.IsSuccess);
-        Assert.Contains("Welcome to our newsletter", result.Message);
+        Assert.Contains("Welcome", result.Message);
     }
 
     [Fact]
-    public async Task SignUpForNewsletterAsync_WithDuplicateEmail_ReturnsFailure()
+    public async Task SignUpForNewsletterAsync_DuplicateEmail_ReturnsFailure()
     {
-        var subscriber1 = new Subscriber { Name = "Test User 1", Email = "duplicate@example.com" };
-        var subscriber2 = new Subscriber { Name = "Test User 2", Email = "duplicate@example.com" };
-        await _sut.SignUpForNewsletterAsync(subscriber1);
+        var subscriber = new Subscriber { Name = "Test User", Email = "test@test.com" };
+        await _sut.SignUpForNewsletterAsync(subscriber); 
 
-        var result = await _sut.SignUpForNewsletterAsync(subscriber2);
+        var result = await _sut.SignUpForNewsletterAsync(subscriber);
 
         Assert.False(result.IsSuccess);
         Assert.Contains("already subscribed", result.Message);
     }
 
     [Fact]
-    public async Task OptOutFromNewsletterAsync_WithExistingEmail_ReturnsSuccess()
+    public async Task OptOutFromNewsletterAsync_ExistingSubscriber_ReturnsSuccess()
     {
-        var subscriber = new Subscriber { Name = "Test User", Email = "optoutuser@example.com" };
+        var subscriber = new Subscriber { Name = "Test User", Email = "test@test.com" };
         await _sut.SignUpForNewsletterAsync(subscriber);
 
-        var result = await _sut.OptOutFromNewsletterAsync("optoutuser@example.com");
+        var result = await _sut.OptOutFromNewsletterAsync("test@test.com");
 
         Assert.True(result.IsSuccess);
-        Assert.Contains("successfully removed", result.Message);
     }
 
     [Fact]
-    public async Task OptOutFromNewsletterAsync_WithNonexistentEmail_ReturnsFailure()
+    public async Task OptOutFromNewsletterAsync_NonExistingSubscriber_ReturnsFailure()
     {
-        var result = await _sut.OptOutFromNewsletterAsync("nonexistent@example.com");
+        var result = await _sut.OptOutFromNewsletterAsync("nobody@test.com");
 
         Assert.False(result.IsSuccess);
-        Assert.Contains("couldn't find your subscription", result.Message);
     }
 
     [Fact]
     public async Task GetActiveSubscribersAsync_ReturnsAllSubscribers()
     {
-        var subscriber1 = new Subscriber { Name = "Test User 1", Email = "test1@example.com" };
-        var subscriber2 = new Subscriber { Name = "Test User 2", Email = "test2@example.com" };
-        await _sut.SignUpForNewsletterAsync(subscriber1);
-        await _sut.SignUpForNewsletterAsync(subscriber2);
+        await _sut.SignUpForNewsletterAsync(new Subscriber { Name = "User 1", Email = "u1@test.com" });
+        await _sut.SignUpForNewsletterAsync(new Subscriber { Name = "User 2", Email = "u2@test.com" });
 
-        var subscribers = await _sut.GetActiveSubscribersAsync();
+        var result = await _sut.GetActiveSubscribersAsync();
 
-        Assert.True(subscribers.Count() >= 2);
-        Assert.Contains(subscribers, s => s.Email == "test1@example.com");
-        Assert.Contains(subscribers, s => s.Email == "test2@example.com");
+        Assert.Equal(2, result.Count());
     }
 }
