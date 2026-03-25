@@ -4,13 +4,12 @@ using CloudSoft.Models;
 using CloudSoft.Configurations;
 using MongoDB.Driver;
 using Azure.Identity;
+using System.Security.Authentication;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Denna rad måste ligga EFTER builder har skapats, men FÖRE builder.Build()
 builder.WebHost.UseStaticWebAssets();
 
-// --- HÄR BÖRJAR DEN NYA KEY VAULT-KODEN ---
 bool useAzureKeyVault = builder.Configuration.GetValue<bool>("FeatureFlags:UseAzureKeyVault");
 
 if (useAzureKeyVault)
@@ -34,7 +33,6 @@ if (useAzureKeyVault)
 
     Console.WriteLine("Using Azure Key Vault for configuration");
 }
-// --- HÄR SLUTAR DEN NYA KEY VAULT-KODEN ---
 
 builder.Services.AddControllersWithViews();
 
@@ -47,7 +45,12 @@ if (useMongoDb)
 
     builder.Services.AddSingleton<IMongoClient>(serviceProvider => {
         var mongoDbOptions = builder.Configuration.GetSection(MongoDbOptions.SectionName).Get<MongoDbOptions>();
-        return new MongoClient(mongoDbOptions?.ConnectionString);
+        
+        // Setup SSL for Cosmos DB
+        var settings = MongoClientSettings.FromConnectionString(mongoDbOptions?.ConnectionString);
+        settings.SslSettings = new SslSettings { EnabledSslProtocols = SslProtocols.Tls12 };
+        
+        return new MongoClient(settings);
     });
 
     builder.Services.AddSingleton<IMongoCollection<Subscriber>>(serviceProvider => {
@@ -77,7 +80,7 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseStaticFiles(); // Viktigt för CSS
+app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthorization();
 
