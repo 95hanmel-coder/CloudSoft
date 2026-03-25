@@ -14,50 +14,54 @@ public class MongoDbSubscriberRepository : ISubscriberRepository
 
     public async Task<IEnumerable<Subscriber>> GetAllAsync()
     {
-        return await _subscribers.Find(_ => true).ToListAsync();
+        try
+        {
+            return await _subscribers.Find(_ => true).ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            LogErrorCode(ex, "GetAllAsync");
+            return new List<Subscriber>();
+        }
     }
 
     public async Task<Subscriber?> GetByEmailAsync(string email)
     {
-        if (string.IsNullOrEmpty(email))
+        if (string.IsNullOrEmpty(email)) return null;
+
+        try
         {
+            return await _subscribers.Find(s => s.Email == email).FirstOrDefaultAsync();
+        }
+        catch (Exception ex)
+        {
+            LogErrorCode(ex, "GetByEmailAsync");
             return null;
         }
-
-        return await _subscribers.Find(s => s.Email == email).FirstOrDefaultAsync();
     }
 
     public async Task<bool> AddAsync(Subscriber subscriber)
     {
-        if (subscriber == null || string.IsNullOrEmpty(subscriber.Email))
-        {
-            return false;
-        }
-
-        // Check if subscriber with this email already exists
-        var existingSubscriber = await GetByEmailAsync(subscriber.Email);
-        if (existingSubscriber != null)
-        {
-            return false;
-        }
+        if (subscriber == null || string.IsNullOrEmpty(subscriber.Email)) return false;
 
         try
         {
+            var existingSubscriber = await GetByEmailAsync(subscriber.Email);
+            if (existingSubscriber != null) return false;
+
             await _subscribers.InsertOneAsync(subscriber);
             return true;
         }
-        catch
+        catch (Exception ex)
         {
+            LogErrorCode(ex, "AddAsync");
             return false;
         }
     }
 
     public async Task<bool> UpdateAsync(Subscriber subscriber)
     {
-        if (subscriber == null || string.IsNullOrEmpty(subscriber.Email))
-        {
-            return false;
-        }
+        if (subscriber == null || string.IsNullOrEmpty(subscriber.Email)) return false;
 
         try
         {
@@ -68,37 +72,50 @@ public class MongoDbSubscriberRepository : ISubscriberRepository
 
             return result.ModifiedCount > 0;
         }
-        catch
+        catch (Exception ex)
         {
+            LogErrorCode(ex, "UpdateAsync");
             return false;
         }
     }
 
     public async Task<bool> DeleteAsync(string email)
     {
-        if (string.IsNullOrEmpty(email))
-        {
-            return false;
-        }
+        if (string.IsNullOrEmpty(email)) return false;
 
         try
         {
             var result = await _subscribers.DeleteOneAsync(s => s.Email == email);
             return result.DeletedCount > 0;
         }
-        catch
+        catch (Exception ex)
         {
+            LogErrorCode(ex, "DeleteAsync");
             return false;
         }
     }
 
     public async Task<bool> ExistsAsync(string email)
     {
-        if (string.IsNullOrEmpty(email))
+        if (string.IsNullOrEmpty(email)) return false;
+
+        try
         {
+            return await _subscribers.CountDocumentsAsync(s => s.Email == email) > 0;
+        }
+        catch (Exception ex)
+        {
+            LogErrorCode(ex, "ExistsAsync");
             return false;
         }
+    }
 
-        return await _subscribers.CountDocumentsAsync(s => s.Email == email) > 0;
+    private void LogErrorCode(Exception ex, string methodName)
+    {
+        Console.WriteLine($"\n[DATABASE ERROR] in {methodName}: {ex.Message}");
+        if (ex.InnerException != null) 
+        {
+            Console.WriteLine($"[INNER EXCEPTION]: {ex.InnerException.Message}");
+        }
     }
 }

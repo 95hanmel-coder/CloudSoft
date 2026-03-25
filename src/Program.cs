@@ -10,6 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.WebHost.UseStaticWebAssets();
 
+// --- AZURE KEY VAULT ---
 bool useAzureKeyVault = builder.Configuration.GetValue<bool>("FeatureFlags:UseAzureKeyVault");
 
 if (useAzureKeyVault)
@@ -36,6 +37,7 @@ if (useAzureKeyVault)
 
 builder.Services.AddControllersWithViews();
 
+// --- MONGODB / COSMOS DB ---
 bool useMongoDb = builder.Configuration.GetValue<bool>("FeatureFlags:UseMongoDb");
 
 if (useMongoDb)
@@ -46,9 +48,11 @@ if (useMongoDb)
     builder.Services.AddSingleton<IMongoClient>(serviceProvider => {
         var mongoDbOptions = builder.Configuration.GetSection(MongoDbOptions.SectionName).Get<MongoDbOptions>();
         
-        // Setup SSL for Cosmos DB
         var settings = MongoClientSettings.FromConnectionString(mongoDbOptions?.ConnectionString);
         settings.SslSettings = new SslSettings { EnabledSslProtocols = SslProtocols.Tls12 };
+        
+        // This fixes the "Retryable writes are not supported" error
+        settings.RetryWrites = false;
         
         return new MongoClient(settings);
     });
